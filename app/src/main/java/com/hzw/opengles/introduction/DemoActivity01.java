@@ -3,7 +3,6 @@ package com.hzw.opengles.introduction;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
@@ -19,12 +18,17 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 public class DemoActivity01 extends Activity {
-    static final float CUBE[] = {
+    // 绘制图片的原理：定义一组矩形区域的顶点，然后根据纹理坐标把图片作为纹理贴在该矩形区域内。
+
+    // 原始的矩形区域的顶点坐标，因为后面使用了顶点法绘制顶点，所以不用定义绘制顶点的索引。无论窗口的大小为多少，在OpenGL二维坐标系中都是为下面表示的矩形区域
+    static final float CUBE[] = { // 窗口中心为OpenGL二维坐标系的原点（0,0）
             -1.0f, -1.0f,
             1.0f, -1.0f,
             -1.0f, 1.0f,
             1.0f, 1.0f,
     };
+    // 纹理也有坐标系，称UV坐标，或者ST坐标。UV坐标定义为左上角（0，0），右下角（1，1），一张图片无论大小为多少，在UV坐标系中都是图片左上角为（0，0），右下角（1，1）
+    // 纹理坐标，每个坐标的纹理采样对应上面顶点坐标。
     public static final float TEXTURE_NO_ROTATION[] = {
             0.0f, 1.0f,
             1.0f, 1.0f,
@@ -33,7 +37,6 @@ public class DemoActivity01 extends Activity {
     };
 
     private GLSurfaceView mGLSurfaceView;
-    private Bitmap mBitmap;
     private int mGLTextureId = OpenGlUtils.NO_TEXTURE;
     private GPUImageFilter mGPUImageFilter = new GPUImageFilter();
 
@@ -48,21 +51,8 @@ public class DemoActivity01 extends Activity {
         setContentView(R.layout.activity_01);
         mGLSurfaceView = findViewById(R.id.gl_surfaceview);
 
-        mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.thelittleprince);
-        mImageWidth = mBitmap.getWidth();
-        mImageHeight = mBitmap.getHeight();
-
-        mGLCubeBuffer = ByteBuffer.allocateDirect(CUBE.length * 4)
-                .order(ByteOrder.nativeOrder())
-                .asFloatBuffer();
-        mGLCubeBuffer.put(CUBE).position(0);
-
-        mGLTextureBuffer = ByteBuffer.allocateDirect(TEXTURE_NO_ROTATION.length * 4)
-                .order(ByteOrder.nativeOrder())
-                .asFloatBuffer();
-
         mGLSurfaceView.setRenderer(new MyRender());
-        mGLSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+        mGLSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY); // 手动刷新
     }
 
     private class MyRender implements GLSurfaceView.Renderer {
@@ -73,30 +63,32 @@ public class DemoActivity01 extends Activity {
             GLES20.glDisable(GLES20.GL_DEPTH_TEST); // 当我们需要绘制透明图片时，就需要关闭它
             mGPUImageFilter.init();
 
-            Bitmap resizedBitmap = null;
-            if (mBitmap.getWidth() % 2 == 1) {
-                resizedBitmap = Bitmap.createBitmap(mBitmap.getWidth() + 1, mBitmap.getHeight(),
-                        Bitmap.Config.ARGB_8888);
-                Canvas can = new Canvas(resizedBitmap);
-                can.drawARGB(0x00, 0x00, 0x00, 0x00);
-                can.drawBitmap(mBitmap, 0, 0, null);
-            } else {
-            }
+            // 需要显示的图片
+            Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.thelittleprince);
+            mImageWidth = bitmap.getWidth();
+            mImageHeight = bitmap.getHeight();
 
-            mGLTextureId = OpenGlUtils.loadTexture(
-                    resizedBitmap != null ? resizedBitmap : mBitmap, mGLTextureId, false);
-            mGLSurfaceView.requestRender();
+            mGLTextureId = OpenGlUtils.loadTexture(bitmap, mGLTextureId, false); // 加载纹理
+
+            // 顶点数组缓冲器
+            mGLCubeBuffer = ByteBuffer.allocateDirect(CUBE.length * 4)
+                    .order(ByteOrder.nativeOrder())
+                    .asFloatBuffer();
+            mGLCubeBuffer.put(CUBE).position(0);
+
+            // 纹理数组缓冲器
+            mGLTextureBuffer = ByteBuffer.allocateDirect(TEXTURE_NO_ROTATION.length * 4)
+                    .order(ByteOrder.nativeOrder())
+                    .asFloatBuffer();
+            mGLTextureBuffer.put(TEXTURE_NO_ROTATION).position(0);
         }
 
         @Override
         public void onSurfaceChanged(GL10 gl, int width, int height) {
-            GLES20.glViewport(0, 0, width, height); // 设置窗口大小
             mOutputWidth = width;
             mOutputHeight = height;
-            GLES20.glViewport(0, 0, width, height);
-            GLES20.glUseProgram(mGPUImageFilter.getProgram());
-            mGPUImageFilter.onOutputSizeChanged(width, height);
-            adjustImageScaling();
+            GLES20.glViewport(0, 0, width, height); // 设置窗口大小
+            adjustImageScaling(); // 调整图片显示大小。如果不调用该方法，则会导致图片整个拉伸到填充窗口显示区域
         }
 
         @Override
@@ -105,6 +97,7 @@ public class DemoActivity01 extends Activity {
             mGPUImageFilter.onDraw(mGLTextureId, mGLCubeBuffer, mGLTextureBuffer);
         }
 
+        // 调整图片显示大小为居中显示
         private void adjustImageScaling() {
             float outputWidth = mOutputWidth;
             float outputHeight = mOutputHeight;
@@ -118,9 +111,7 @@ public class DemoActivity01 extends Activity {
             float ratioWidth = imageWidthNew / outputWidth;
             float ratioHeight = imageHeightNew / outputHeight;
 
-            float[] cube = CUBE;
-            float[] textureCords = TEXTURE_NO_ROTATION;
-            cube = new float[]{
+            float[] cube = new float[]{
                     CUBE[0] / ratioHeight, CUBE[1] / ratioWidth,
                     CUBE[2] / ratioHeight, CUBE[3] / ratioWidth,
                     CUBE[4] / ratioHeight, CUBE[5] / ratioWidth,
@@ -129,8 +120,6 @@ public class DemoActivity01 extends Activity {
 
             mGLCubeBuffer.clear();
             mGLCubeBuffer.put(cube).position(0);
-            mGLTextureBuffer.clear();
-            mGLTextureBuffer.put(textureCords).position(0);
         }
     }
 }

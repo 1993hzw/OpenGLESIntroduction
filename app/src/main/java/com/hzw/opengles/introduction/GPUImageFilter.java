@@ -16,14 +16,11 @@
 
 package com.hzw.opengles.introduction;
 
-import android.content.Context;
-import android.content.res.AssetManager;
 import android.graphics.PointF;
 import android.opengl.GLES20;
 
 import com.hzw.opengles.introduction.util.OpenGlUtils;
 
-import java.io.InputStream;
 import java.nio.FloatBuffer;
 import java.util.LinkedList;
 
@@ -73,63 +70,44 @@ public class GPUImageFilter {
     public final void init() {
         onInit();
         mIsInitialized = true;
-        onInitialized();
     }
 
     public void onInit() {
         mGLProgId = OpenGlUtils.loadProgram(mVertexShader, mFragmentShader);
-        mGLAttribPosition = GLES20.glGetAttribLocation(mGLProgId, "position");
-        mGLUniformTexture = GLES20.glGetUniformLocation(mGLProgId, "inputImageTexture");
-        mGLAttribTextureCoordinate = GLES20.glGetAttribLocation(mGLProgId,
-                "inputTextureCoordinate");
+        mGLAttribPosition = GLES20.glGetAttribLocation(mGLProgId, "position"); // 顶点着色器的顶点坐标
+        mGLUniformTexture = GLES20.glGetUniformLocation(mGLProgId, "inputImageTexture"); // 传入的图片纹理
+        mGLAttribTextureCoordinate = GLES20.glGetAttribLocation(mGLProgId, "inputTextureCoordinate"); // 顶点着色器的纹理坐标
         mIsInitialized = true;
-    }
-
-    public void onInitialized() {
-    }
-
-    public final void destroy() {
-        mIsInitialized = false;
-        GLES20.glDeleteProgram(mGLProgId);
-        onDestroy();
-    }
-
-    public void onDestroy() {
-    }
-
-    public void onOutputSizeChanged(final int width, final int height) {
-        mOutputWidth = width;
-        mOutputHeight = height;
     }
 
     public void onDraw(final int textureId, final FloatBuffer cubeBuffer,
                        final FloatBuffer textureBuffer) {
         GLES20.glUseProgram(mGLProgId);
-        runPendingOnDrawTasks();
+        runPendingOnDrawTasks(); // 执行被挂起的操作
         if (!mIsInitialized) {
             return;
         }
-
+        // 顶点着色器的顶点坐标
         cubeBuffer.position(0);
         GLES20.glVertexAttribPointer(mGLAttribPosition, 2, GLES20.GL_FLOAT, false, 0, cubeBuffer);
         GLES20.glEnableVertexAttribArray(mGLAttribPosition);
+        // 顶点着色器的纹理坐标
         textureBuffer.position(0);
-        GLES20.glVertexAttribPointer(mGLAttribTextureCoordinate, 2, GLES20.GL_FLOAT, false, 0,
-                textureBuffer);
+        GLES20.glVertexAttribPointer(mGLAttribTextureCoordinate, 2, GLES20.GL_FLOAT, false, 0, textureBuffer);
         GLES20.glEnableVertexAttribArray(mGLAttribTextureCoordinate);
+        // 传入的图片纹理
         if (textureId != OpenGlUtils.NO_TEXTURE) {
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId);
             GLES20.glUniform1i(mGLUniformTexture, 0);
         }
-        onDrawArraysPre();
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+
+        // 绘制顶点 ，方式有顶点法和索引法
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4); // 顶点法，按照传入渲染管线的顶点顺序及采用的绘制方式将顶点组成图元进行绘制
         GLES20.glDisableVertexAttribArray(mGLAttribPosition);
         GLES20.glDisableVertexAttribArray(mGLAttribTextureCoordinate);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
     }
-
-    protected void onDrawArraysPre() {}
 
     protected void runPendingOnDrawTasks() {
         while (!mRunOnDraw.isEmpty()) {
@@ -252,29 +230,10 @@ public class GPUImageFilter {
         });
     }
 
+    // 把相关操作放置在mRunOnDraw队列中，等到切换到GL线程的绘制再执行被挂起的操作
     protected void runOnDraw(final Runnable runnable) {
         synchronized (mRunOnDraw) {
             mRunOnDraw.addLast(runnable);
         }
-    }
-
-    public static String loadShader(String file, Context context) {
-        try {
-            AssetManager assetManager = context.getAssets();
-            InputStream ims = assetManager.open(file);
-
-            String re = convertStreamToString(ims);
-            ims.close();
-            return re;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return "";
-    }
-
-    public static String convertStreamToString(java.io.InputStream is) {
-        java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
-        return s.hasNext() ? s.next() : "";
     }
 }
