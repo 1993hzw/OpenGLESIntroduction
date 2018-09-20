@@ -25,25 +25,28 @@ import java.nio.FloatBuffer;
 import java.util.LinkedList;
 
 public class GPUImageFilter {
+    // 数据中有多少个顶点，管线就调用多少次顶点着色器
     public static final String NO_FILTER_VERTEX_SHADER = "" +
-            "attribute vec4 position;\n" +
-            "attribute vec4 inputTextureCoordinate;\n" +
+            "attribute vec4 position;\n" + // 顶点着色器的顶点坐标,由外部程序传入
+            "attribute vec4 inputTextureCoordinate;\n" + // 传入的纹理坐标
             " \n" +
             "varying vec2 textureCoordinate;\n" +
             " \n" +
             "void main()\n" +
             "{\n" +
             "    gl_Position = position;\n" +
-            "    textureCoordinate = inputTextureCoordinate.xy;\n" +
+            "    textureCoordinate = inputTextureCoordinate.xy;\n" + // 最终顶点位置
             "}";
+
+    // 光栅化后产生了多少个片段，就会插值计算出多少个varying变量，同时渲染管线就会调用多少次片段着色器
     public static final String NO_FILTER_FRAGMENT_SHADER = "" +
-            "varying highp vec2 textureCoordinate;\n" +
+            "varying highp vec2 textureCoordinate;\n" + // 最终顶点位置，上面顶点着色器的varying变量会传递到这里
             " \n" +
-            "uniform sampler2D inputImageTexture;\n" +
+            "uniform sampler2D inputImageTexture;\n" + // 外部传入的图片纹理 即代表整张图片的数据
             " \n" +
             "void main()\n" +
             "{\n" +
-            "     gl_FragColor = texture2D(inputImageTexture, textureCoordinate);\n" +
+            "     gl_FragColor = texture2D(inputImageTexture, textureCoordinate);\n" +  // 调用函数 进行纹理贴图
             "}";
 
     private final LinkedList<Runnable> mRunOnDraw;

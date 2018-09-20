@@ -22,18 +22,18 @@ public class GLShowImageActivity extends Activity {
 
     // 原始的矩形区域的顶点坐标，因为后面使用了顶点法绘制顶点，所以不用定义绘制顶点的索引。无论窗口的大小为多少，在OpenGL二维坐标系中都是为下面表示的矩形区域
     static final float CUBE[] = { // 窗口中心为OpenGL二维坐标系的原点（0,0）
-            -1.0f, -1.0f,
-            1.0f, -1.0f,
-            -1.0f, 1.0f,
-            1.0f, 1.0f,
+            -1.0f, -1.0f, // v1
+            1.0f, -1.0f,  // v2
+            -1.0f, 1.0f,  // v3
+            1.0f, 1.0f,   // v4
     };
     // 纹理也有坐标系，称UV坐标，或者ST坐标。UV坐标定义为左上角（0，0），右下角（1，1），一张图片无论大小为多少，在UV坐标系中都是图片左上角为（0，0），右下角（1，1）
     // 纹理坐标，每个坐标的纹理采样对应上面顶点坐标。
     public static final float TEXTURE_NO_ROTATION[] = {
-            0.0f, 1.0f,
-            1.0f, 1.0f,
-            0.0f, 0.0f,
-            1.0f, 0.0f,
+            0.0f, 1.0f, // v1
+            1.0f, 1.0f, // v2
+            0.0f, 0.0f, // v3
+            1.0f, 0.0f, // v4
     };
 
     private GLSurfaceView mGLSurfaceView;
