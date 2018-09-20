@@ -37,22 +37,20 @@ public class GLShowImageActivity extends Activity {
     };
 
     private GLSurfaceView mGLSurfaceView;
-    private int mGLTextureId = OpenGlUtils.NO_TEXTURE;
-    private GPUImageFilter mGPUImageFilter = new GPUImageFilter();
+    private int mGLTextureId = OpenGlUtils.NO_TEXTURE; // 纹理id
+    private GLImageHandler mGLImageHandler = new GLImageHandler();
 
     private FloatBuffer mGLCubeBuffer;
     private FloatBuffer mGLTextureBuffer;
-    private int mOutputWidth, mOutputHeight;
-    private int mImageWidth, mImageHeight;
-    private ScaleType mScaleType = ScaleType.CENTER_INSIDE;
-
-    public enum ScaleType {CENTER_INSIDE, CENTER_CROP}
+    private int mOutputWidth, mOutputHeight; // 窗口大小
+    private int mImageWidth, mImageHeight; // bitmap图片实际大小
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_01);
         mGLSurfaceView = findViewById(R.id.gl_surfaceview);
+        mGLSurfaceView.setEGLContextClientVersion(2); // 创建OpenGL ES 2.0 的上下文环境
 
         mGLSurfaceView.setRenderer(new MyRender());
         mGLSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY); // 手动刷新
@@ -64,14 +62,14 @@ public class GLShowImageActivity extends Activity {
         public void onSurfaceCreated(GL10 gl, EGLConfig config) {
             GLES20.glClearColor(0, 0, 0, 1);
             GLES20.glDisable(GLES20.GL_DEPTH_TEST); // 当我们需要绘制透明图片时，就需要关闭它
-            mGPUImageFilter.init();
+            mGLImageHandler.init();
 
             // 需要显示的图片
-            Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.thelittleprince2);
+            Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.thelittleprince);
             mImageWidth = bitmap.getWidth();
             mImageHeight = bitmap.getHeight();
-
-            mGLTextureId = OpenGlUtils.loadTexture(bitmap, mGLTextureId, false); // 加载纹理
+            // 把图片数据加载进GPU，生成对应的纹理id
+            mGLTextureId = OpenGlUtils.loadTexture(bitmap, mGLTextureId, true); // 加载纹理
 
             // 顶点数组缓冲器
             mGLCubeBuffer = ByteBuffer.allocateDirect(CUBE.length * 4)
@@ -95,9 +93,10 @@ public class GLShowImageActivity extends Activity {
         }
 
         @Override
-        public void onDrawFrame(GL10 gl) {
+        public void onDrawFrame(GL10 gl) { // 绘制
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
-            mGPUImageFilter.onDraw(mGLTextureId, mGLCubeBuffer, mGLTextureBuffer);
+            // 根据纹理id，顶点和纹理坐标数据绘制图片
+            mGLImageHandler.onDraw(mGLTextureId, mGLCubeBuffer, mGLTextureBuffer);
         }
 
         // 调整图片显示大小为居中显示
@@ -107,7 +106,7 @@ public class GLShowImageActivity extends Activity {
 
             float ratio1 = outputWidth / mImageWidth;
             float ratio2 = outputHeight / mImageHeight;
-            float ratioMax = mScaleType == ScaleType.CENTER_INSIDE ? Math.min(ratio1, ratio2) : Math.max(ratio1, ratio2);
+            float ratioMax = Math.min(ratio1, ratio2);
             // 居中后图片显示的大小
             int imageWidthNew = Math.round(mImageWidth * ratioMax);
             int imageHeightNew = Math.round(mImageHeight * ratioMax);
@@ -115,37 +114,16 @@ public class GLShowImageActivity extends Activity {
             // 图片被拉伸的比例
             float ratioWidth = outputWidth / imageWidthNew;
             float ratioHeight = outputHeight / imageHeightNew;
-
-            float[] cube = CUBE;
-            float[] textureCords = TEXTURE_NO_ROTATION;
-            if (mScaleType == ScaleType.CENTER_INSIDE) {
-                cube = new float[]{
+            // 根据拉伸比例还原顶点
+            float[] cube = new float[]{
                         CUBE[0] / ratioWidth, CUBE[1] / ratioHeight,
                         CUBE[2] / ratioWidth, CUBE[3] / ratioHeight,
                         CUBE[4] / ratioWidth, CUBE[5] / ratioHeight,
                         CUBE[6] / ratioWidth, CUBE[7] / ratioHeight,
                 };
-            } else {
-                // 根据UV坐标的特性计算水平和垂直方向的差值
-                float distHorizontal = (1 - ratioWidth) / 2;
-                float distVertical = (1 - ratioHeight) / 2;
-                textureCords = new float[]{
-                        addDistance(textureCords[0], distHorizontal), addDistance(textureCords[1], distVertical),
-                        addDistance(textureCords[2], distHorizontal), addDistance(textureCords[3], distVertical),
-                        addDistance(textureCords[4], distHorizontal), addDistance(textureCords[5], distVertical),
-                        addDistance(textureCords[6], distHorizontal), addDistance(textureCords[7], distVertical),
-                };
-            }
 
             mGLCubeBuffer.clear();
             mGLCubeBuffer.put(cube).position(0);
-            mGLTextureBuffer.clear();
-            mGLTextureBuffer.put(textureCords).position(0);
-        }
-
-        private float addDistance(float coordinate, float distance) {
-            return coordinate == 0.0f ? distance // 左边或者上边的纹理坐标
-                    : 1 - distance; // 右边或下边的纹理坐标
         }
     }
 }
