@@ -79,6 +79,7 @@ public class GLImageHandler {
         }
 
         // 绘制顶点 ，方式有顶点法和索引法
+        // GLES20.GL_TRIANGLE_STRIP即每相邻三个顶点组成一个三角形，为一系列相接三角形构成
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4); // 顶点法，按照传入渲染管线的顶点顺序及采用的绘制方式将顶点组成图元进行绘制
 
         GLES20.glDisableVertexAttribArray(mGLAttribPosition);
